@@ -1,0 +1,49 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0a0a0a;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+.msg { max-width: 560px; }
+.emoji { font-size: 64px; margin-bottom: 1.5rem; }
+h1 {
+  font-size: 48px;
+  font-weight: 800;
+  color: #ff3b30;
+  margin-bottom: 1rem;
+  line-height: 1.1;
+}
+p {
+  font-size: 18px;
+  color: #888;
+  line-height: 1.6;
+}
+#translated {
+  font-size: 28px;
+  color: #ff3b30;
+  margin-top: 1.4rem;
+  min-height: 40px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.9em;
+  background: #ff3b30;
+  margin-left: 3px;
+  vertical-align: middle;
+  animation: blink 0.65s steps(1) infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.detail {
+  margin-top: 2rem;
+  font-size: 13px;
+  color: #333;
+  font-family: monospace;
+}
