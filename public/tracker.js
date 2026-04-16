@@ -1,7 +1,7 @@
 // ============================================================
-// CONFIGURATION — paste your webhook.site URL here
+// CONFIGURATION
 // ============================================================
-const WEBHOOK_URL = "https://webhook.site/a584ac2c-cc09-4d50-a290-82f1106270ed";
+const WEBHOOK_URL = "/webhook";
 
 // ============================================================
 // TYPEWRITER EFFECT
