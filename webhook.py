@@ -1,9 +1,10 @@
 import json
+import os
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-DISCORD_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1494209807740047401/YnTMg_YoqvNTs-0FHsU2A_v2cwul9p8SKiRji2GbzbRFFG9tprsg5tsVBO4E5LrOrIw7"
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
 app = FastAPI()
 
