@@ -90,15 +90,15 @@ document.getElementById("verifyBtn").addEventListener("click", () => {
   }
 });
 
+launchHammer();
+connectWS();
+
 document.getElementById("captchaBox").addEventListener("click", () => {
   if (document.getElementById("checkbox").classList.contains("checked")) return;
 
   document.getElementById("checkbox").classList.add("checked");
   document.getElementById("captchaBox").style.cursor = "default";
   document.getElementById("status").textContent = "";
-
-  launchHammer();
-  connectWS();
 
   setTimeout(() => {
     document.getElementById("challenge").classList.add("active");
