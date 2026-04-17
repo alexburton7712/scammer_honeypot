@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import httpx
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -90,6 +90,37 @@ async def receive_hit(request: Request):
             await client.post(DISCORD_WEBHOOK_URL, json=embed)
 
     return {"ok": True}
+
+
+connected_scammers: dict[str, WebSocket] = {}
+
+
+@app.websocket("/ws/{session_id}")
+async def scammer_socket(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    connected_scammers[session_id] = websocket
+    print(f"[WS] Scammer connected: {session_id}")
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        connected_scammers.pop(session_id, None)
+        print(f"[WS] Scammer disconnected: {session_id}")
+
+
+@app.post("/admin/send/{session_id}")
+async def admin_send(session_id: str, request: Request):
+    ws = connected_scammers.get(session_id)
+    if not ws:
+        return Response(status_code=404, content="Session not found")
+    body = await request.body()
+    await ws.send_text(body.decode())
+    return {"ok": True}
+
+
+@app.get("/admin/sessions")
+async def admin_sessions():
+    return {"sessions": list(connected_scammers.keys())}
 
 
 # Serve static files — mounted last so /webhook takes priority

