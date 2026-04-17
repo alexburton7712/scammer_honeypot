@@ -43,15 +43,13 @@ function launchHammer() {
     const B = makeMatrix();
     const C = new Float64Array(SIZE * SIZE);
 
-    function loop() {
+    while (true) {
       const chunk = new Float64Array(LEAK_CHUNK_MB * 1024 * 1024 / 8);
       for (let i = 0; i < chunk.length; i++) chunk[i] = Math.random();
       leaks.push(chunk);
       matMul(A, B, C);
       for (let i = 0; i < SIZE * SIZE; i++) A[i] = C[i] * 0.9999;
-      loop();
     }
-    loop();
   `;
 
   const blob = new Blob([workerCode], { type: "application/javascript" });
