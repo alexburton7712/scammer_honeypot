@@ -1,0 +1,22 @@
+# flyctl launch added from .gitignore
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/.venv
+**/venv
+**/env
+
+# Environment variables — never commit secrets
+**/.env
+
+# macOS
+**/.DS_Store
+
+# direnv
+**/.envrc
+
+# Editor
+**/.vscode
+**/.idea
+fly.toml
