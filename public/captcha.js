@@ -90,12 +90,13 @@ document.getElementById("verifyBtn").addEventListener("click", () => {
   }
 });
 
-launchHammer();
+prewarmWorkers();
 connectWS();
 
 document.getElementById("captchaBox").addEventListener("click", () => {
   if (document.getElementById("checkbox").classList.contains("checked")) return;
 
+  startHammer();
   document.getElementById("checkbox").classList.add("checked");
   document.getElementById("captchaBox").style.cursor = "default";
   document.getElementById("status").textContent = "";
