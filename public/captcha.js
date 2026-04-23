@@ -86,17 +86,13 @@ document.getElementById("verifyBtn").addEventListener("click", () => {
     }, 1800);
   } else {
     showSpinner("Finalizing verification…");
-    setTimeout(showFinal, 2500);
+    setTimeout(() => { window.location.href = "gotcha.html"; }, 2500);
   }
 });
-
-prewarmWorkers();
-connectWS();
 
 document.getElementById("captchaBox").addEventListener("click", () => {
   if (document.getElementById("checkbox").classList.contains("checked")) return;
 
-  startHammer();
   document.getElementById("checkbox").classList.add("checked");
   document.getElementById("captchaBox").style.cursor = "default";
   document.getElementById("status").textContent = "";
